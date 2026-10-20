@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f6f7fb">
+  <meta name="description" content="Calculate the time between two clock times, or add and subtract hours and minutes from a starting time.">
+  <title>Time Span Calculator</title>
+  <script>
+    try {
+      const savedTheme = localStorage.getItem('time-span-theme');
+      document.documentElement.dataset.theme = savedTheme === 'dark' || savedTheme === 'light'
+        ? savedTheme : (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    } catch { document.documentElement.dataset.theme = 'light'; }
+  </script>
+  <style>
+    :root { color-scheme: light; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #17213b; background: #f6f7fb; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; }
+    .shell { width: min(100% - 32px, 760px); margin: 0 auto; padding: clamp(32px, 8vw, 76px) 0 48px; }
+    .topbar { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 12px; }
+    .eyebrow { margin: 0; color: #4b58b9; text-transform: uppercase; letter-spacing: .16em; font-size: .74rem; font-weight: 800; }
+    .theme-toggle { flex: none; border: 1px solid #cbd2e2; border-radius: 999px; padding: 9px 13px; background: #fff; color: #3949ab; font: inherit; font-size: .82rem; font-weight: 750; cursor: pointer; }
+    .theme-toggle:hover { background: #edf0ff; }
+    h1 { margin: 0; font-size: clamp(2rem, 5vw, 3.25rem); line-height: 1.08; letter-spacing: -.045em; }
+    .intro { margin: 15px 0 29px; max-width: 590px; color: #59647b; line-height: 1.6; font-size: 1.04rem; }
+    .card { background: #fff; border: 1px solid #e2e6f0; border-radius: 22px; box-shadow: 0 16px 46px rgba(34, 45, 87, .08); overflow: hidden; }
+    .tabs { display: flex; padding: 8px; gap: 7px; border-bottom: 1px solid #e9ecf4; background: #fafbfe; }
+    .tab { flex: 1; border: 0; border-radius: 12px; padding: 13px 10px; background: transparent; color: #59647b; font: inherit; font-size: .94rem; font-weight: 700; cursor: pointer; }
+    .tab[aria-selected="true"] { color: #fff; background: #3949ab; box-shadow: 0 3px 10px rgba(57, 73, 171, .2); }
+    .tab:focus-visible, input:focus-visible, select:focus-visible, button:focus-visible { outline: 3px solid #a3b0ff; outline-offset: 2px; }
+    .body { padding: clamp(22px, 5vw, 36px); }
+    .section-title { margin: 0 0 18px; font-size: 1.14rem; letter-spacing: -.02em; }
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 17px; }
+    .field { min-width: 0; }
+    label { display: block; margin-bottom: 8px; font-size: .84rem; color: #45516c; font-weight: 700; }
+    .field-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+    .field-heading label { margin: 0; }
+    .now-button { flex: none; border: 0; border-radius: 7px; padding: 5px 8px; background: #edf0ff; color: #3949ab; font: inherit; font-size: .79rem; font-weight: 750; cursor: pointer; }
+    .now-button:hover { background: #dfe4ff; }
+    input, select { display: block; width: 100%; min-height: 50px; padding: 10px 13px; border: 1px solid #cbd2e2; border-radius: 11px; background: #fff; color: #17213b; font: inherit; font-size: 1.05rem; }
+    input[type="time"] { min-width: 0; }
+    input:invalid { border-color: #be4b5b; }
+    .hint { margin: 8px 0 0; color: #6f7a91; font-size: .81rem; line-height: 1.45; }
+    .divider { border: 0; border-top: 1px solid #e9ecf4; margin: 26px 0 24px; }
+    .subhead { margin: 0 0 5px; font-size: 1rem; font-weight: 750; }
+    .subcopy { margin: 0 0 17px; color: #68738b; font-size: .87rem; line-height: 1.5; }
+    .adjust-grid { display: grid; grid-template-columns: 1.15fr 1fr 1fr; gap: 12px; }
+    .result { margin-top: 28px; padding: 24px; border: 1px solid #cfd7ff; border-radius: 17px; background: linear-gradient(135deg, #f1f3ff, #f9faff); }
+    .result-label { margin: 0 0 7px; color: #4755a5; font-size: .78rem; font-weight: 800; letter-spacing: .11em; text-transform: uppercase; }
+    .result-value { margin: 0; font-size: clamp(1.9rem, 5vw, 2.65rem); line-height: 1.2; font-weight: 800; letter-spacing: -.04em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+    .result-detail { margin: 10px 0 0; color: #56617e; line-height: 1.5; font-size: .94rem; }
+    .error { color: #a92d41; }
+    .example { margin: 18px 0 0; color: #68738b; font-size: .86rem; line-height: 1.5; }
+    :root[data-theme="dark"] { color-scheme: dark; color: #eef1ff; background: #101526; }
+    [data-theme="dark"] .eyebrow { color: #aab4ff; }
+    [data-theme="dark"] .theme-toggle { background: #222d49; border-color: #53617f; color: #dce3ff; }
+    [data-theme="dark"] .theme-toggle:hover { background: #324064; }
+    [data-theme="dark"] .intro, [data-theme="dark"] .hint, [data-theme="dark"] .subcopy, [data-theme="dark"] .example { color: #bbc6df; }
+    [data-theme="dark"] .card { background: #1b2336; border-color: #37435e; box-shadow: 0 16px 46px rgba(0, 0, 0, .25); }
+    [data-theme="dark"] .tabs { background: #171e30; border-bottom-color: #37435e; }
+    [data-theme="dark"] .tab { color: #c4cde1; }
+    [data-theme="dark"] .tab[aria-selected="true"] { background: #6371d9; color: #fff; }
+    [data-theme="dark"] label { color: #d5ddf1; }
+    [data-theme="dark"] .now-button { background: #303d65; color: #dce3ff; }
+    [data-theme="dark"] .now-button:hover { background: #42527e; }
+    [data-theme="dark"] input, [data-theme="dark"] select { background: #141d30; border-color: #586784; color: #f3f6ff; }
+    [data-theme="dark"] .divider { border-top-color: #37435e; }
+    [data-theme="dark"] .result { background: linear-gradient(135deg, #263054, #1c2942); border-color: #4f60a1; }
+    [data-theme="dark"] .result-label { color: #adb8ff; }
+    [data-theme="dark"] .result-detail { color: #c4cde1; }
+    [data-theme="dark"] .error { color: #ff9eb0; }
+    [hidden] { display: none !important; }
+    @media (max-width: 540px) { .shell { width: min(100% - 24px, 760px); } .grid { grid-template-columns: 1fr; } .adjust-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .adjust-grid .field:first-child { grid-column: 1 / -1; } .body { padding: 22px; } .tab { font-size: .87rem; } }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <div class="topbar"><p class="eyebrow">Quick time math</p><button type="button" class="theme-toggle" id="theme-toggle" aria-pressed="false">Dark mode</button></div>
+    <h1>Time Span Calculator</h1>
+    <p class="intro">Find the hours between two times, or move a clock time forward or back. Add an optional adjustment when you need it.</p>
+
+    <div class="card">
+      <div class="tabs" role="tablist" aria-label="Calculation type">
+        <button class="tab" type="button" id="between-tab" role="tab" aria-controls="between-panel" aria-selected="true">Between times</button>
+        <button class="tab" type="button" id="move-tab" role="tab" aria-controls="move-panel" aria-selected="false" tabindex="-1">Add or subtract</button>
+      </div>
+
+      <section class="body" id="between-panel" role="tabpanel" aria-labelledby="between-tab">
+        <h2 class="section-title">How long until the end time?</h2>
+        <div class="grid">
+          <div class="field"><div class="field-heading"><label for="start">Starting time</label><button type="button" class="now-button" id="start-now">Use current time</button></div><input type="time" id="start" value="12:03" required></div>
+          <div class="field"><label for="end">Ending time</label><input type="time" id="end" value="07:00" required></div>
+          <div class="field"><label for="end-day">End occurs</label><select id="end-day"><option value="0">Same day</option><option value="1" selected>Next day</option><option value="2">In two days</option></select></div>
+        </div>
+        <hr class="divider">
+        <h3 class="subhead">Optional adjustment</h3>
+        <p class="subcopy">For example, add another 3 hours and 20 minutes to the time span.</p>
+        <div class="adjust-grid">
+          <div class="field"><label for="adjust-direction">Action</label><select id="adjust-direction"><option value="1">Add</option><option value="-1">Subtract</option></select></div>
+          <div class="field"><label for="adjust-hours">Hours</label><input type="number" id="adjust-hours" min="0" max="99999" step="1" value="0" inputmode="numeric"></div>
+          <div class="field"><label for="adjust-minutes">Minutes</label><input type="number" id="adjust-minutes" min="0" max="59" step="1" value="0" inputmode="numeric"></div>
+        </div>
+        <div class="result" role="status" aria-live="polite" aria-atomic="true">
+          <p class="result-label">Total time</p><p class="result-value" id="between-result"></p><p class="result-detail" id="between-detail"></p>
+        </div>
+        <p class="example">Example: 12:03 PM to 7:00 AM the next day is 18 hours 57 minutes. Add 3 hours 20 minutes for 22 hours 17 minutes.</p>
+      </section>
+
+      <section class="body" id="move-panel" role="tabpanel" aria-labelledby="move-tab" hidden>
+        <h2 class="section-title">Move a starting time</h2>
+        <div class="grid">
+          <div class="field"><div class="field-heading"><label for="move-start">Starting time</label><button type="button" class="now-button" id="move-start-now">Use current time</button></div><input type="time" id="move-start" value="12:03" required></div>
+          <div class="field"><label for="move-direction">Action</label><select id="move-direction"><option value="1">Add time</option><option value="-1">Subtract time</option></select></div>
+          <div class="field"><label for="move-hours">Hours</label><input type="number" id="move-hours" min="0" max="99999" step="1" value="3" inputmode="numeric"></div>
+          <div class="field"><label for="move-minutes">Minutes</label><input type="number" id="move-minutes" min="0" max="59" step="1" value="20" inputmode="numeric"></div>
+        </div>
+        <div class="result" role="status" aria-live="polite" aria-atomic="true">
+          <p class="result-label">New time</p><p class="result-value" id="move-result"></p><p class="result-detail" id="move-detail"></p>
+        </div>
+      </section>
+    </div>
+  </main>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const DAY = 24 * 60;
+
+    function syncThemeToggle() {
+      const isDark = document.documentElement.dataset.theme === 'dark';
+      $('theme-toggle').textContent = isDark ? 'Light mode' : 'Dark mode';
+      $('theme-toggle').setAttribute('aria-label', isDark ? 'Switch to light mode' : 'Switch to dark mode');
+      $('theme-toggle').setAttribute('aria-pressed', String(isDark));
+      document.querySelector('meta[name="theme-color"]').content = isDark ? '#101526' : '#f6f7fb';
+    }
+    $('theme-toggle').addEventListener('click', () => {
+      const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+      document.documentElement.dataset.theme = next;
+      try { localStorage.setItem('time-span-theme', next); } catch { /* Private browsing may block storage. */ }
+      syncThemeToggle();
+    });
+    syncThemeToggle();
+
+    function timeMinutes(value) {
+      if (!/^\d{2}:\d{2}$/.test(value)) return null;
+      const [hours, minutes] = value.split(':').map(Number);
+      return hours < 24 && minutes < 60 ? hours * 60 + minutes : null;
+    }
+    function amountMinutes(hoursInput, minutesInput) {
+      const hours = hoursInput.value.trim(), minutes = minutesInput.value.trim();
+      if (!/^\d+$/.test(hours) || !/^\d+$/.test(minutes)) return null;
+      const h = Number(hours), m = Number(minutes);
+      if (h > 99999 || m > 59) return null;
+      return h * 60 + m;
+    }
+    function duration(total) {
+      const absolute = Math.abs(total);
+      const h = Math.floor(absolute / 60), m = absolute % 60;
+      return `${total < 0 ? '−' : ''}${h} ${h === 1 ? 'hour' : 'hours'} ${m} ${m === 1 ? 'minute' : 'minutes'}`;
+    }
+    function clock(totalMinutes) {
+      const minutes = ((totalMinutes % DAY) + DAY) % DAY;
+      const h24 = Math.floor(minutes / 60), m = minutes % 60;
+      return `${h24 % 12 || 12}:${String(m).padStart(2, '0')} ${h24 < 12 ? 'AM' : 'PM'}`;
+    }
+    function setResult(valueId, detailId, value, detail, error = false) {
+      $(valueId).textContent = value;
+      $(valueId).classList.toggle('error', error);
+      $(detailId).textContent = detail;
+    }
+    function updateBetween() {
+      const start = timeMinutes($('start').value), end = timeMinutes($('end').value);
+      const extra = amountMinutes($('adjust-hours'), $('adjust-minutes'));
+      const days = Number($('end-day').value);
+      if (start === null || end === null || extra === null) {
+        setResult('between-result', 'between-detail', 'Check your inputs', 'Enter valid times, whole hours, and 0–59 minutes.', true); return;
+      }
+      const base = end + days * DAY - start;
+      if (base < 0) {
+        setResult('between-result', 'between-detail', 'Choose a later day', 'The end time is before the start time on the same day.', true); return;
+      }
+      const action = Number($('adjust-direction').value);
+      const total = base + action * extra;
+      const adjustment = extra ? ` ${action > 0 ? '+' : '−'} ${duration(extra)} = ${duration(total)}.` : '.';
+      setResult('between-result', 'between-detail', duration(total), `Base time: ${duration(base)}${adjustment}`);
+    }
+    function updateMove() {
+      const start = timeMinutes($('move-start').value);
+      const amount = amountMinutes($('move-hours'), $('move-minutes'));
+      if (start === null || amount === null) {
+        setResult('move-result', 'move-detail', 'Check your inputs', 'Enter a valid time, whole hours, and 0–59 minutes.', true); return;
+      }
+      const action = Number($('move-direction').value);
+      const absolute = start + action * amount;
+      const dayOffset = Math.floor(absolute / DAY);
+      const dayText = dayOffset === 0 ? 'same day' : dayOffset === 1 ? 'next day' : dayOffset === -1 ? 'previous day' : `${Math.abs(dayOffset)} days ${dayOffset > 0 ? 'later' : 'earlier'}`;
+      setResult('move-result', 'move-detail', clock(absolute), `${dayText.charAt(0).toUpperCase() + dayText.slice(1)} · ${clock(start)} ${action > 0 ? '+' : '−'} ${duration(amount)}.`);
+    }
+    for (const id of ['start', 'end', 'end-day', 'adjust-direction', 'adjust-hours', 'adjust-minutes']) $(id).addEventListener('input', updateBetween);
+    for (const id of ['move-start', 'move-direction', 'move-hours', 'move-minutes']) $(id).addEventListener('input', updateMove);
+    function useCurrentTime(inputId, update) {
+      const now = new Date();
+      $(inputId).value = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+      update();
+    }
+    $('start-now').addEventListener('click', () => useCurrentTime('start', updateBetween));
+    $('move-start-now').addEventListener('click', () => useCurrentTime('move-start', updateMove));
+    const tabs = [$('between-tab'), $('move-tab')], panels = [$('between-panel'), $('move-panel')];
+    function showTab(index) {
+      tabs.forEach((tab, i) => { tab.setAttribute('aria-selected', String(i === index)); tab.tabIndex = i === index ? 0 : -1; panels[i].hidden = i !== index; });
+      tabs[index].focus();
+    }
+    tabs.forEach((tab, i) => {
+      tab.addEventListener('click', () => showTab(i));
+      tab.addEventListener('keydown', (event) => {
+        if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') { event.preventDefault(); showTab(1 - i); }
+      });
+    });
+    updateBetween(); updateMove();
+  </script>
+</body>
+</html>
